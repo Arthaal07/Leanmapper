@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LeanMapper V2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@700;800&display=swap');
+
+:root {
+  --bg:   #0A0A0F;
+  --bg2:  #13131A;
+  --bg3:  #1C1C26;
+  --ln:   #252535;
+  --acc:  #00E5FF;
+  --acc2: #FF6B35;
+  --acc3: #B3FF6B;
+  --warn: #FFD166;
+  --dan:  #FF4757;
+  --txt:  #E0E0F0;
+  --mut:  #5A5A7A;
+  --r:    12px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;}
+#app{display:flex;flex-direction:column;height:100dvh;}
+
+/* TOPBAR */
+#topbar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;
+  background:var(--bg2);border-bottom:1px solid var(--ln);
+  flex-shrink:0;
+}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;
+  background:linear-gradient(90deg,var(--acc),var(--acc3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-sub{font-size:.58rem;color:var(--mut);margin-left:2px;padding:2px 6px;
+  background:var(--bg3);border:1px solid var(--ln);border-radius:4px;}
+.spacer{flex:1;}
+.tbtn{background:var(--bg3);border:1px solid var(--ln);color:var(--txt);
+  border-radius:7px;padding:5px 11px;font-size:.7rem;font-family:'DM Mono',monospace;cursor:pointer;}
+.tbtn.dan{background:var(--dan);border-color:var(--dan);color:#fff;}
+
+/* PAGES */
+.page{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.page.on{display:flex;}
+
+/* ── PAGE SETUP ── */
+#pg-setup{align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.setup-card{background:var(--bg2);border:1px solid var(--ln);border-radius:16px;
+  padding:24px;max-width:380px;width:100%;}
+.setup-card h2{font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--acc);margin-bottom:6px;}
+.setup-card p{font-size:.7rem;color:var(--mut);line-height:1.6;margin-bottom:20px;}
+.field-label{font-size:.65rem;color:var(--acc);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.field-input{width:100%;background:var(--bg3);border:1.5px solid var(--ln);border-radius:8px;
+  color:var(--txt);font-family:'DM Mono',monospace;font-size:.85rem;padding:11px 14px;outline:none;margin-bottom:16px;}
+.field-input:focus{border-color:var(--acc);}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+.mode-card{background:var(--bg3);border:2px solid var(--ln);border-radius:10px;
+  padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;}
+.mode-card.sel{border-color:var(--acc);background:rgba(0,229,255,.07);}
+.mode-card .mc-icon{font-size:1.8rem;margin-bottom:6px;}
+.mode-card .mc-title{font-size:.72rem;font-weight:500;color:var(--txt);}
+.mode-card .mc-desc{font-size:.6rem;color:var(--mut);margin-top:3px;line-height:1.5;}
+.big-btn{width:100%;padding:13px;background:var(--acc);border:none;border-radius:var(--r);
+  color:#000;font-family:'DM Mono',monospace;font-size:.85rem;font-weight:700;cursor:pointer;}
+.big-btn:disabled{opacity:.35;cursor:not-allowed;}
+.big-btn.sec{background:var(--bg3);border:1px solid var(--ln);color:var(--mut);font-size:.75rem;margin-top:8px;}
+
+/* ── PAGE CAMERA ── */
+#pg-cam{position:relative;background:#000;}
+#cam-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5;}
+#cam-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#cam-overlay{position:absolute;inset:0;pointer-events:none;}
+
+/* HUD caméra */
+#cam-hud{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.hud-chip{background:rgba(10,10,15,.88);border:1px solid var(--ln);border-radius:8px;
+  padding:5px 10px;font-size:.65rem;color:var(--txt);backdrop-filter:blur(4px);}
+.hud-chip .hv{font-size:.9rem;font-weight:500;font-family:'Syne',sans-serif;}
+.hud-chip.rec{border-color:var(--dan);color:var(--dan);}
+.hud-chip.ok{border-color:var(--acc3);color:var(--acc3);}
+
+/* REC indicator */
+#rec-dot{position:absolute;top:14px;right:14px;
+  width:12px;height:12px;border-radius:50%;background:var(--dan);
+  box-shadow:0 0 10px var(--dan);
+  animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+/* Scan lines effect */
+#cam-scanlines{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);
+  z-index:2;}
+
+/* Corner brackets */
+.corner-bracket{position:absolute;width:30px;height:30px;border-color:var(--acc);border-style:solid;opacity:.6;}
+.cb-tl{top:60px;left:10px;border-width:2px 0 0 2px;}
+.cb-tr{top:60px;right:10px;border-width:2px 2px 0 0;}
+.cb-bl{bottom:100px;left:10px;border-width:0 0 2px 2px;}
+.cb-br{bottom:100px;right:10px;border-width:0 2px 2px 0;}
+
+/* Optical flow indicator */
+#flow-indicator{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:80px;height:80px;border-radius:50%;
+  border:2px solid rgba(0,229,255,.3);
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;transition:all .2s;}
+#flow-indicator.active{border-color:var(--acc3);box-shadow:0 0 20px rgba(179,255,107,.3);}
+#flow-val{font-family:'Syne',sans-serif;font-size:.65rem;color:var(--acc);text-align:center;}
+
+/* Toolbar caméra bas */
+#cam-toolbar{
+  position:absolute;bottom:0;left:0;right:0;
+  display:flex;gap:8px;padding:12px 14px 20px;
+  background:linear-gradient(transparent,rgba(10,10,15,.95));
+  z-index:10;
+}
+.ct-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:rgba(30,30,40,.9);border:1.5px solid var(--ln);border-radius:12px;
+  padding:10px 6px;cursor:pointer;
+}
+.ct-btn .ci{font-size:1.3rem;}
+.ct-btn .cl{font-size:.55rem;color:var(--mut);}
+.ct-btn.rec-btn{border-color:var(--dan);background:rgba(255,71,87,.15);}
+.ct-btn.rec-btn.recording{border-color:var(--dan);background:rgba(255,71,87,.3);}
+.ct-btn.prim{border-color:var(--acc);background:rgba(0,229,255,.12);}
+
+/* Frame counter badge */
+#frame-badge{position:absolute;top:-8px;right:-8px;
+  background:var(--acc3);color:#000;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:.6rem;
+  padding:2px 6px;border-radius:10px;min-width:20px;text-align:center;}
+
+/* ── PAGE FRAMES ── */
+#pg-frames{padding:0;overflow-y:auto;}
+.frames-header{padding:16px 16px 10px;background:var(--bg2);border-bottom:1px solid var(--ln);}
+.frames-header h2{font-family:'Syne',sans-serif;font-size:.95rem;color:var(--acc);margin-bottom:4px;}
+.frames-header p{font-size:.67rem;color:var(--mut);}
+.frames-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;}
+.frame-item{position:relative;border-radius:8px;overflow:hidden;
+  border:2px solid var(--ln);cursor:pointer;aspect-ratio:16/9;background:var(--bg3);}
+.frame-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.frame-item.selected{border-color:var(--acc3);}
+.frame-item.excluded{opacity:.3;border-color:var(--mut);}
+.frame-check{position:absolute;top:4px;right:4px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--acc3);color:#000;
+  font-size:.65rem;display:flex;align-items:center;justify-content:center;
+  font-weight:700;}
+.frame-excluded-x{position:absolute;top:4px;right:4px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--dan);color:#fff;
+  font-size:.65rem;display:flex;align-items:center;justify-content:center;
+  font-weight:700;}
+.frame-ts{position:absolute;bottom:4px;left:4px;
+  background:rgba(0,0,0,.75);color:var(--mut);
+  font-size:.55rem;padding:2px 5px;border-radius:4px;}
+.frames-footer{padding:12px 16px 20px;background:var(--bg2);border-top:1px solid var(--ln);}
+
+/* ── PAGE ANALYSE ── */
+#pg-analyse{align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
+.analyse-card{background:var(--bg2);border:1px solid var(--ln);border-radius:16px;
+  padding:24px;max-width:380px;width:100%;}
+.analyse-card h2{font-family:'Syne',sans-serif;font-size:1rem;color:var(--acc);margin-bottom:16px;}
+.progress-bar-wrap{background:var(--bg3);border-radius:4px;height:6px;margin-bottom:8px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc3));
+  border-radius:4px;transition:width .3s;width:0%;}
+.analyse-status{font-size:.7rem;color:var(--mut);margin-bottom:20px;}
+.result-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;}
+.result-item{background:var(--bg3);border:1px solid var(--ln);border-radius:8px;
+  padding:10px 12px;}
+.result-item .ri-frame{font-size:.58rem;color:var(--mut);margin-bottom:4px;}
+.result-item .ri-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.ri-tag{padding:3px 8px;border-radius:20px;font-size:.6rem;font-weight:500;}
+.ri-tag.machine{background:rgba(255,107,53,.2);color:var(--acc2);border:1px solid var(--acc2);}
+.ri-tag.table{background:rgba(0,229,255,.15);color:var(--acc);border:1px solid var(--acc);}
+.ri-tag.allee{background:rgba(179,255,107,.15);color:var(--acc3);border:1px solid var(--acc3);}
+.ri-tag.poste{background:rgba(255,209,102,.15);color:var(--warn);border:1px solid var(--warn);}
+.ri-tag.mur{background:rgba(90,90,122,.3);color:var(--mut);border:1px solid var(--mut);}
+.ri-tag.rack{background:rgba(179,107,255,.2);color:#B36BFF;border:1px solid #B36BFF;}
+.ri-tag.other{background:var(--bg2);color:var(--mut);border:1px solid var(--ln);}
+.analyse-error{background:rgba(255,71,87,.1);border:1px solid var(--dan);border-radius:8px;
+  padding:12px;font-size:.7rem;color:var(--dan);margin-top:10px;line-height:1.6;}
+.api-key-wrap{margin-bottom:16px;}
+.api-key-wrap label{font-size:.65rem;color:var(--acc);display:block;margin-bottom:6px;}
+.api-key-input{width:100%;background:var(--bg3);border:1.5px solid var(--ln);border-radius:8px;
+  color:var(--txt);font-family:'DM Mono',monospace;font-size:.75rem;padding:9px 12px;outline:none;}
+.api-key-input:focus{border-color:var(--acc);}
+
+/* ── PAGE PLAN ── */
+#pg-plan{position:relative;}
+#plan-canvas{display:block;touch-action:none;}
+
+/* HUD plan */
+#plan-hud{position:absolute;top:10px;left:10px;pointer-events:none;display:flex;flex-direction:column;gap:6px;}
+
+/* Toolbar plan bas */
+#plan-toolbar{
+  display:flex;gap:6px;padding:8px 10px;
+  background:var(--bg2);border-top:1px solid var(--ln);
+  flex-shrink:0;
+}
+.pt-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:var(--bg3);border:1.5px solid var(--ln);border-radius:10px;
+  padding:8px 4px;cursor:pointer;
+}
+.pt-btn .pi{font-size:1.2rem;}
+.pt-btn .pl{font-size:.55rem;color:var(--mut);}
+.pt-btn.acc{background:rgba(0,229,255,.1);border-color:var(--acc);}
+.pt-btn.grn{background:rgba(179,255,107,.1);border-color:var(--acc3);}
+.pt-btn.warn{background:rgba(255,209,102,.1);border-color:var(--warn);}
+
+/* ── PAGE EXPORT ── */
+#pg-export{padding:16px;overflow-y:auto;}
+.exp-header{background:linear-gradient(135deg,#00838F,#006064);
+  border-radius:var(--r);padding:16px;margin-bottom:14px;}
+.exp-header h2{font-family:'Syne',sans-serif;font-size:1rem;color:#fff;}
+.exp-header p{font-size:.68rem;color:rgba(255,255,255,.65);margin-top:4px;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.stat-c{background:var(--bg2);border:1px solid var(--ln);border-radius:10px;padding:10px;text-align:center;}
+.stat-c .sv{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:var(--acc2);}
+.stat-c .sl{font-size:.58rem;color:var(--mut);text-transform:uppercase;margin-top:2px;}
+#exp-preview{background:var(--bg2);border:1px solid var(--ln);border-radius:var(--r);overflow:hidden;margin-bottom:14px;}
+#exp-canvas{display:block;width:100%;}
+.ebtn{width:100%;padding:12px;border:none;border-radius:var(--r);
+  font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;margin-bottom:8px;}
+.ebtn.acc{background:var(--acc);color:#000;font-weight:700;}
+.ebtn.sec{background:var(--bg3);border:1px solid var(--ln);color:var(--txt);}
+
+/* MODALS */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;
+  align-items:flex-end;justify-content:center;}
+.modal.on{display:flex;}
+.mbox{background:var(--bg2);border-radius:20px 20px 0 0;padding:20px;width:100%;
+  max-width:440px;max-height:78vh;overflow-y:auto;}
+.mbox h3{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;color:var(--acc);margin-bottom:14px;}
+.mrow{display:flex;flex-direction:column;gap:8px;}
+.mcard{display:flex;align-items:center;gap:12px;
+  background:var(--bg3);border:1.5px solid var(--ln);border-radius:10px;
+  padding:12px 14px;cursor:pointer;}
+.mcard:active{border-color:var(--acc);}
+.mcard .mc-icon{font-size:1.5rem;flex-shrink:0;}
+.mcard .mc-info{flex:1;}
+.mcard .mc-title{font-size:.8rem;font-weight:500;color:var(--txt);}
+.mcard .mc-desc{font-size:.65rem;color:var(--mut);margin-top:2px;}
+.minp{width:100%;background:var(--bg3);border:1px solid var(--ln);border-radius:8px;
+  color:var(--txt);font-family:'DM Mono',monospace;font-size:.82rem;
+  padding:10px 12px;outline:none;margin-bottom:10px;}
+.minp:focus{border-color:var(--acc);}
+.mcb{width:100%;padding:11px;border:none;border-radius:10px;
+  font-family:'DM Mono',monospace;font-size:.78rem;cursor:pointer;margin-bottom:6px;}
+.mcb.acc{background:var(--acc);color:#000;font-weight:700;}
+.mcb.sec{background:var(--bg3);border:1px solid var(--ln);color:var(--mut);}
+.suggestions-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.sugg-btn{padding:5px 10px;background:var(--bg3);border:1px solid var(--ln);
+  border-radius:6px;color:var(--mut);font-family:'DM Mono',monospace;font-size:.66rem;cursor:pointer;}
+
+/* TOAST */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:var(--bg3);border:1px solid var(--ln);color:var(--txt);
+  font-size:.7rem;padding:7px 16px;border-radius:20px;z-index:300;
+  opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
+#toast.on{opacity:1;}
+#toast.err{border-color:var(--dan);color:var(--dan);}
+#toast.ok{border-color:var(--acc3);color:var(--acc3);}
+
+/* Element type legend */
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.62rem;color:var(--mut);}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <span class="logo">LeanMapper</span>
+    <span class="logo-sub">V2 · Caméra</span>
+    <div class="spacer"></div>
+    <button class="tbtn" id="btn-export-top" onclick="goPage('export')" style="display:none">📥 Export</button>
+    <button class="tbtn dan" id="btn-reset-top" onclick="resetSession()" style="display:none">↺</button>
+  </div>
+
+  <!-- ── PAGE SETUP ── -->
+  <div class="page on" id="pg-setup">
+    <div class="setup-card">
+      <h2>🏭 Nouvelle cartographie</h2>
+      <p>Filmez votre zone en marchant — l'app extrait les frames clés, puis Claude Vision identifie les équipements automatiquement.</p>
+
+      <div class="field-label">Nom de la zone</div>
+      <input class="field-input" id="inp-zone-name" placeholder="ex: UAP 7200 — Postes 1 à 6" maxlength="60" value="">
+
+      <div class="field-label" style="margin-bottom:8px">Mode de capture</div>
+      <div class="mode-grid">
+        <div class="mode-card sel" id="mode-cam" onclick="selectMode('cam')">
+          <div class="mc-icon">📹</div>
+          <div class="mc-title">Caméra</div>
+          <div class="mc-desc">Filmez en marchant — analyse IA après</div>
+        </div>
+        <div class="mode-card" id="mode-pdr" onclick="selectMode('pdr')">
+          <div class="mc-icon">🦶</div>
+          <div class="mc-title">PDR</div>
+          <div class="mc-desc">Détection de pas (backup sans caméra)</div>
+        </div>
+      </div>
+
+      <div id="cam-info" style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+        <div style="font-size:.62rem;color:var(--acc);margin-bottom:6px">📡 Pré-requis caméra</div>
+        <div style="font-size:.62rem;color:var(--mut);line-height:1.7">
+          ✅ HTTPS requis (GitHub Pages OK)<br>
+          📱 Autoriser accès caméra au démarrage<br>
+          💡 Marchez lentement en filmant les équipements<br>
+          🎯 Visez les machines, tables, postes de face ou plongeant
+        </div>
+      </div>
+
+      <div class="api-key-wrap" id="api-key-section">
+        <label>🔑 Clé API Anthropic (pour l'analyse IA)</label>
+        <input class="api-key-input" type="password" id="inp-api-key"
+          placeholder="sk-ant-api03-..." autocomplete="off"
+          oninput="saveApiKey(this.value)">
+        <div style="font-size:.58rem;color:var(--mut);margin-top:4px">
+          Stockée localement uniquement — jamais envoyée ailleurs.<br>
+          Sans clé : capture possible mais pas d'analyse IA.
+        </div>
+      </div>
+
+      <button class="big-btn" id="btn-start-setup" onclick="startSetup()">▶ Démarrer la capture</button>
+      <button class="big-btn sec" onclick="loadDemo()">🖥 Démo (sans caméra)</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE CAMÉRA ── -->
+  <div class="page" id="pg-cam" style="position:relative;flex:1;">
+    <video id="cam-video" autoplay muted playsinline></video>
+    <canvas id="cam-canvas"></canvas>
+    <div id="cam-scanlines"></div>
+    <div class="corner-bracket cb-tl"></div>
+    <div class="corner-bracket cb-tr"></div>
+    <div class="corner-bracket cb-bl"></div>
+    <div class="corner-bracket cb-br"></div>
+
+    <div id="rec-dot" style="display:none"></div>
+
+    <div id="cam-hud">
+      <div class="hud-chip" id="hud-rec">
+        <div class="hv" id="hud-rec-val">PRÊT</div>
+        <div>Statut</div>
+      </div>
+      <div class="hud-chip ok" id="hud-frames">
+        <div class="hv" id="hud-frames-val">0</div>
+        <div>Frames clés</div>
+      </div>
+      <div class="hud-chip" id="hud-dur">
+        <div class="hv" id="hud-dur-val">0:00</div>
+        <div>Durée</div>
+      </div>
+      <div class="hud-chip" id="hud-flow">
+        <div class="hv" id="hud-flow-val">— %</div>
+        <div>Mouvement</div>
+      </div>
+    </div>
+
+    <div id="flow-indicator">
+      <div id="flow-val">
+        <div style="font-size:1rem">👁</div>
+        <div>ANALYSE</div>
+      </div>
+    </div>
+
+    <div id="cam-toolbar">
+      <div class="ct-btn" onclick="goPage('setup')">
+        <span class="ci">✕</span>
+        <span class="cl">Annuler</span>
+      </div>
+      <div class="ct-btn rec-btn" id="btn-rec" onclick="toggleRecording()" style="flex:2;position:relative;">
+        <span class="ci" id="rec-icon">⏺</span>
+        <span class="cl" id="rec-label">Démarrer</span>
+        <span id="frame-badge">0</span>
+      </div>
+      <div class="ct-btn prim" id="btn-finish-cam" onclick="finishCapture()" style="display:none;flex:2;">
+        <span class="ci">✅</span>
+        <span class="cl">Terminer</span>
+      </div>
+      <div class="ct-btn" onclick="addManualFrame()">
+        <span class="ci">📸</span>
+        <span class="cl">Capturer</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PAGE FRAMES ── -->
+  <div class="page" id="pg-frames">
+    <div class="frames-header">
+      <h2>🖼 Frames capturées</h2>
+      <p id="frames-subtitle">Tapez sur une frame pour l'exclure de l'analyse</p>
+    </div>
+    <div class="frames-grid" id="frames-grid"></div>
+    <div class="frames-footer">
+      <button class="big-btn" onclick="startAnalysis()" id="btn-analyse">
+        🤖 Analyser avec Claude Vision
+      </button>
+      <button class="big-btn sec" onclick="skipAnalysis()" style="margin-top:8px">
+        → Passer l'analyse (plan manuel)
+      </button>
+      <button class="big-btn sec" onclick="goPage('cam')">← Recapturer</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE ANALYSE ── -->
+  <div class="page" id="pg-analyse">
+    <div class="analyse-card">
+      <h2>🤖 Analyse en cours…</h2>
+      <div id="analyse-frame-preview" style="margin-bottom:12px;border-radius:8px;overflow:hidden;display:none;">
+        <img id="analyse-current-frame" style="width:100%;display:block;" src="" alt="">
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="analyse-progress"></div></div>
+      <div class="analyse-status" id="analyse-status">Préparation…</div>
+      <div class="result-list" id="result-list"></div>
+      <div id="analyse-error" class="analyse-error" style="display:none"></div>
+      <button class="big-btn" id="btn-build-plan" onclick="buildPlan()" style="display:none;margin-top:12px">
+        🗺 Construire le plan →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── PAGE PLAN ── -->
+  <div class="page" id="pg-plan" style="position:relative;">
+    <canvas id="plan-canvas" style="display:block;flex:1;touch-action:none;"></canvas>
+
+    <div id="plan-hud">
+      <div class="hud-chip active" style="border-color:var(--acc);color:var(--acc)">
+        <div class="hv" id="plan-zone-name">—</div>
+        <div>Zone</div>
+      </div>
+      <div class="hud-chip">
+        <div class="hv" id="plan-element-count">0</div>
+        <div>Éléments</div>
+      </div>
+    </div>
+
+    <div id="plan-toolbar">
+      <div class="pt-btn acc" onclick="showAddElementModal()">
+        <span class="pi">➕</span>
+        <span class="pl">Ajouter</span>
+      </div>
+      <div class="pt-btn warn" onclick="showScaleModal()">
+        <span class="pi">📏</span>
+        <span class="pl">Échelle</span>
+      </div>
+      <div class="pt-btn grn" onclick="goPage('export');renderExport()">
+        <span class="pi">📥</span>
+        <span class="pl">Exporter</span>
+      </div>
+      <div class="pt-btn" onclick="resetSession()" style="border-color:var(--dan)">
+        <span class="pi">↺</span>
+        <span class="pl" style="color:var(--dan)">Nouveau</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PAGE EXPORT ── -->
+  <div class="page" id="pg-export">
+    <div class="exp-header">
+      <h2 id="exp-title">Plan cartographié</h2>
+      <p id="exp-sub">LeanMapper V2</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat-c"><div class="sv" id="es-elements">—</div><div class="sl">Éléments</div></div>
+      <div class="stat-c"><div class="sv" id="es-frames">—</div><div class="sl">Frames</div></div>
+      <div class="stat-c"><div class="sv" id="es-scale">—</div><div class="sl">Échelle</div></div>
+    </div>
+    <div id="exp-preview"><canvas id="exp-canvas" height="280"></canvas></div>
+    <button class="ebtn acc" onclick="exportLeanPlan()">📥 Exporter .leanplan.json</button>
+    <button class="ebtn sec" onclick="exportPNG()">🖼 Exporter PNG</button>
+    <button class="ebtn sec" onclick="goPage('plan')">← Retour plan</button>
+    <button class="ebtn sec" onclick="resetSession()" style="color:var(--dan);border-color:var(--dan)">↺ Nouvelle session</button>
+  </div>
+
+</div><!-- app -->
+
+<!-- MODAL : ajouter élément manuellement -->
+<div class="modal" id="modal-add-element">
+  <div class="mbox">
+    <h3>➕ Ajouter un élément</h3>
+    <div style="font-size:.65rem;color:var(--acc);margin-bottom:6px">Type</div>
+    <div class="mrow" id="element-type-list">
+      <div class="mcard" onclick="selectElementType('machine')"><span class="mc-icon">⚙️</span><div class="mc-info"><div class="mc-title">Machine</div><div class="mc-desc">Presse, tour, soudeuse, fraiseuse…</div></div></div>
+      <div class="mcard" onclick="selectElementType('table')"><span class="mc-icon">🪧</span><div class="mc-info"><div class="mc-title">Table / Établi</div><div class="mc-desc">Plan de travail, établi, bac</div></div></div>
+      <div class="mcard" onclick="selectElementType('poste')"><span class="mc-icon">👷</span><div class="mc-info"><div class="mc-title">Poste de travail</div><div class="mc-desc">Position opérateur</div></div></div>
+      <div class="mcard" onclick="selectElementType('rack')"><span class="mc-icon">📦</span><div class="mc-info"><div class="mc-title">Rack / Stock</div><div class="mc-desc">Rayonnage, palettier, buffer</div></div></div>
+      <div class="mcard" onclick="selectElementType('allee')"><span class="mc-icon">↔️</span><div class="mc-info"><div class="mc-title">Allée</div><div class="mc-desc">Couloir, flux piéton</div></div></div>
+      <div class="mcard" onclick="selectElementType('mur')"><span class="mc-icon">🧱</span><div class="mc-info"><div class="mc-title">Mur / Limite</div><div class="mc-desc">Cloison, bord d'atelier</div></div></div>
+    </div>
+    <input class="minp" id="inp-element-label" placeholder="Nom (ex: Poste 7200)" maxlength="40" style="margin-top:10px">
+    <button class="mcb acc" onclick="confirmAddElement()">Placer sur le plan</button>
+    <button class="mcb sec" onclick="closeModal('modal-add-element')">Annuler</button>
+  </div>
+</div>
+
+<!-- MODAL : échelle -->
+<div class="modal" id="modal-scale">
+  <div class="mbox">
+    <h3>📏 Calibrer l'échelle</h3>
+    <p style="font-size:.7rem;color:var(--mut);margin-bottom:14px">
+      Tapez deux points sur le plan correspondant à une distance connue.
+    </p>
+    <div style="font-size:.65rem;color:var(--acc);margin-bottom:6px">Distance réelle (mètres)</div>
+    <input class="minp" type="number" id="inp-scale-dist" value="5" min="0.5" max="100" step="0.5"
+      placeholder="ex: 5 (pour 5 mètres)">
+    <div style="font-size:.62rem;color:var(--mut);margin-bottom:12px;line-height:1.6">
+      Après confirmation, tapez le 1er point puis le 2ème sur le plan.
+    </div>
+    <button class="mcb acc" onclick="startScaleCalib()">📍 Placer les 2 points</button>
+    <button class="mcb sec" onclick="closeModal('modal-scale')">Annuler</button>
+  </div>
+</div>
+
+<!-- MODAL : éditer label -->
+<div class="modal" id="modal-edit-label">
+  <div class="mbox">
+    <h3>✏️ Renommer l'élément</h3>
+    <input class="minp" id="inp-edit-label" placeholder="Nouveau nom…" maxlength="40">
+    <div class="suggestions-row" id="edit-suggestions"></div>
+    <button class="mcb acc" onclick="confirmEditLabel()">Valider</button>
+    <button class="mcb sec" style="color:var(--dan);border-color:var(--dan)" onclick="deleteSelectedElement()">🗑 Supprimer</button>
+    <button class="mcb sec" onclick="closeModal('modal-edit-label')">Annuler</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+var S = {
+  mode:        'cam',
+  zoneName:    '',
+  apiKey:      '',
+  // Capture
+  recording:   false,
+  recStart:    null,
+  recTimer:    null,
+  captureFrames: [],   // [{dataUrl, ts, selected}]
+  flowCanvas:  null,
+  flowCtx:     null,
+  prevFrameData: null,
+  flowInterval: null,
+  frameInterval: null,
+  stream:      null,
+  // Analysis results
+  analysisResults: [], // [{frameIdx, elements:[{type,label,x,y,w,h}]}]
+  // Plan
+  elements:    [],     // {id, type, label, x, y, w, h, color, fromFrame}
+  scaleM:      1,      // px per meter on plan
+  PX_PER_M:   60,
+  // Camera (pan/zoom)
+  camX: 0, camY: 0, camZ: 1,
+  // Scale calib
+  scalePicking: false,
+  scalePoint1: null,
+  scaleDistM: 5,
+  // Edit
+  selectedElementId: null,
+  addingElementType: null,
+  addingElementLabel: '',
+};
+
+var planCanvas = null, planCtx = null, animFrame = null;
+
+const ELEMENT_COLORS = {
+  machine: '#FF6B35',
+  table:   '#00E5FF',
+  poste:   '#FFD166',
+  rack:    '#B36BFF',
+  allee:   '#B3FF6B',
+  mur:     '#5A5A7A',
+  other:   '#E0E0F0',
+};
+const ELEMENT_ICONS = {
+  machine: '⚙️', table: '🪧', poste: '👷',
+  rack: '📦', allee: '↔️', mur: '🧱', other: '📌',
+};
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function goPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  var pg = document.getElementById('pg-' + id);
+  if (pg) pg.classList.add('on');
+  if (id === 'plan') { initPlanCanvas(); startPlanRender(); }
+  if (id === 'export') { renderExport(); }
+  var showTop = ['plan','export'].includes(id);
+  document.getElementById('btn-export-top').style.display = (id === 'plan') ? 'block' : 'none';
+  document.getElementById('btn-reset-top').style.display  = showTop ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════
+function selectMode(m) {
+  S.mode = m;
+  document.getElementById('mode-cam').classList.toggle('sel', m === 'cam');
+  document.getElementById('mode-pdr').classList.toggle('sel', m === 'pdr');
+}
+
+function saveApiKey(v) {
+  S.apiKey = v.trim();
+  try { localStorage.setItem('lm_apikey', S.apiKey); } catch(e){}
+}
+
+function startSetup() {
+  S.zoneName = (document.getElementById('inp-zone-name').value || '').trim() || 'Zone sans nom';
+  if (S.mode === 'pdr') {
+    toast('Mode PDR non disponible dans V2 — utilisez LeanMapper V1', 'err');
+    return;
+  }
+  startCamera();
+}
+
+function loadDemo() {
+  S.zoneName = 'Démo — UAP 7200';
+  S.mode = 'cam';
+  // Génère un plan démo sans caméra
+  var demoElements = [
+    {id:1, type:'machine', label:'Presse P1',    x:2, y:2,  w:3, h:2, color:ELEMENT_COLORS.machine, fromFrame:0},
+    {id:2, type:'machine', label:'Soudeuse S1',  x:7, y:2,  w:2.5, h:2, color:ELEMENT_COLORS.machine, fromFrame:1},
+    {id:3, type:'table',   label:'Établi E1',    x:2, y:6,  w:4, h:1.2, color:ELEMENT_COLORS.table,   fromFrame:1},
+    {id:4, type:'poste',   label:'Poste 7200',   x:3, y:8,  w:1.5, h:1.5, color:ELEMENT_COLORS.poste,  fromFrame:2},
+    {id:5, type:'rack',    label:'Stock pièces', x:12, y:1,  w:2, h:5, color:ELEMENT_COLORS.rack,    fromFrame:2},
+    {id:6, type:'allee',   label:'Allée princ.', x:0, y:5,  w:15, h:1.5, color:ELEMENT_COLORS.allee,  fromFrame:3},
+    {id:7, type:'mur',     label:'Mur Nord',     x:0, y:0,  w:15, h:0.3, color:ELEMENT_COLORS.mur,   fromFrame:0},
+    {id:8, type:'table',   label:'Table contrôle',x:9, y:6, w:3, h:1.5, color:ELEMENT_COLORS.table, fromFrame:3},
+  ];
+  S.elements = demoElements;
+  S.captureFrames = [{dataUrl:'', ts:0, selected:true}];
+  toast('Mode démo — plan pré-chargé', 'ok');
+  goPage('plan');
+}
+
+// ═══════════════════════════════════════════════════════
+// CAMÉRA
+// ═══════════════════════════════════════════════════════
+function startCamera() {
+  goPage('cam');
+  var constraints = {
+    video: {
+      facingMode: {ideal: 'environment'},
+      width:  {ideal: 1280},
+      height: {ideal: 720},
+    },
+    audio: false
+  };
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+    S.stream = stream;
+    var video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    video.onloadedmetadata = function() {
+      video.play();
+      initFlowCanvas();
+      toast('Caméra OK — appuyez sur ⏺ pour démarrer', 'ok');
+      document.getElementById('hud-rec-val').textContent = 'PRÊT';
+    };
+  }).catch(function(err) {
+    toast('Caméra indisponible : ' + err.message, 'err');
+    document.getElementById('hud-rec-val').textContent = 'ERREUR';
+    console.error('Camera error:', err);
+  });
+}
+
+function initFlowCanvas() {
+  var video = document.getElementById('cam-video');
+  S.flowCanvas = document.createElement('canvas');
+  S.flowCanvas.width  = 160;
+  S.flowCanvas.height = 90;
+  S.flowCtx = S.flowCanvas.getContext('2d', {willReadFrequently: true});
+  S.prevFrameData = null;
+}
+
+function toggleRecording() {
+  if (!S.recording) {
+    startRecording();
+  } else {
+    pauseRecording();
+  }
+}
+
+function startRecording() {
+  S.recording = true;
+  S.recStart  = S.recStart || Date.now();
+  document.getElementById('rec-icon').textContent  = '⏸';
+  document.getElementById('rec-label').textContent = 'Pause';
+  document.getElementById('btn-rec').classList.add('recording');
+  document.getElementById('rec-dot').style.display = 'block';
+  document.getElementById('btn-finish-cam').style.display = 'flex';
+
+  var hudRec = document.getElementById('hud-rec');
+  hudRec.classList.add('rec');
+  document.getElementById('hud-rec-val').textContent = 'REC';
+
+  // Timer durée
+  S.recTimer = setInterval(updateDuration, 1000);
+
+  // Optical flow + frame extraction toutes les 800ms
+  S.flowInterval = setInterval(analyzeFlow, 200);
+  S.frameInterval = setInterval(extractKeyFrame, 800);
+}
+
+function pauseRecording() {
+  S.recording = false;
+  document.getElementById('rec-icon').textContent  = '⏺';
+  document.getElementById('rec-label').textContent = 'Reprendre';
+  document.getElementById('btn-rec').classList.remove('recording');
+  document.getElementById('rec-dot').style.display = 'none';
+  document.getElementById('hud-rec-val').textContent = 'PAUSE';
+
+  clearInterval(S.recTimer);
+  clearInterval(S.flowInterval);
+  clearInterval(S.frameInterval);
+}
+
+function updateDuration() {
+  if (!S.recStart) return;
+  var elapsed = Math.floor((Date.now() - S.recStart) / 1000);
+  var m = Math.floor(elapsed / 60);
+  var s = elapsed % 60;
+  document.getElementById('hud-dur-val').textContent =
+    m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function analyzeFlow() {
+  var video = document.getElementById('cam-video');
+  if (!video || !S.flowCanvas || video.readyState < 2) return;
+
+  var ctx = S.flowCtx;
+  ctx.drawImage(video, 0, 0, S.flowCanvas.width, S.flowCanvas.height);
+  var curr = ctx.getImageData(0, 0, S.flowCanvas.width, S.flowCanvas.height);
+
+  if (S.prevFrameData) {
+    var diff = 0;
+    var data = curr.data;
+    var prev = S.prevFrameData.data;
+    var n    = data.length;
+    for (var i = 0; i < n; i += 4) {
+      var dr = Math.abs(data[i]   - prev[i]);
+      var dg = Math.abs(data[i+1] - prev[i+1]);
+      var db = Math.abs(data[i+2] - prev[i+2]);
+      diff  += (dr + dg + db) / 3;
+    }
+    var pct = Math.min(100, (diff / (n / 4)) * 2).toFixed(0);
+    document.getElementById('hud-flow-val').textContent = pct + ' %';
+
+    var fi = document.getElementById('flow-indicator');
+    if (pct > 5) fi.classList.add('active');
+    else         fi.classList.remove('active');
+
+    document.getElementById('flow-val').innerHTML =
+      '<div style="font-size:1.2rem">' + (pct > 10 ? '🎯' : '👁') + '</div>' +
+      '<div style="font-size:.55rem;font-family:DM Mono">' + pct + '%</div>';
+  }
+  S.prevFrameData = curr;
+}
+
+function extractKeyFrame() {
+  var video = document.getElementById('cam-video');
+  if (!video || video.readyState < 2) return;
+
+  // Vérifier si mouvement suffisant
+  if (S.captureFrames.length > 0 && parseFloat(
+    document.getElementById('hud-flow-val').textContent) < 3) return;
+
+  var tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width  = 480;
+  tmpCanvas.height = 270;
+  var tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.drawImage(video, 0, 0, 480, 270);
+  var dataUrl = tmpCanvas.toDataURL('image/jpeg', 0.75);
+
+  // Déduplica légère — éviter 2 frames quasi-identiques
+  if (S.captureFrames.length > 0) {
+    var last = S.captureFrames[S.captureFrames.length - 1].dataUrl;
+    if (last === dataUrl) return;
+  }
+
+  S.captureFrames.push({dataUrl: dataUrl, ts: Date.now(), selected: true});
+
+  var count = S.captureFrames.length;
+  document.getElementById('frame-badge').textContent = count;
+  document.getElementById('hud-frames-val').textContent = count;
+
+  // Limiter à 30 frames max
+  if (S.captureFrames.length >= 30) {
+    pauseRecording();
+    toast('30 frames capturées — arrêt automatique', 'ok');
+    finishCapture();
+  }
+}
+
+function addManualFrame() {
+  var video = document.getElementById('cam-video');
+  if (!video || video.readyState < 2) { toast('Caméra non disponible', 'err'); return; }
+  var tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = 480; tmpCanvas.height = 270;
+  tmpCanvas.getContext('2d').drawImage(video, 0, 0, 480, 270);
+  var dataUrl = tmpCanvas.toDataURL('image/jpeg', 0.8);
+  S.captureFrames.push({dataUrl: dataUrl, ts: Date.now(), selected: true});
+  var count = S.captureFrames.length;
+  document.getElementById('frame-badge').textContent = count;
+  document.getElementById('hud-frames-val').textContent = count;
+  toast('📸 Frame capturée manuellement (' + count + ')', 'ok');
+}
+
+function finishCapture() {
+  if (S.captureFrames.length === 0) {
+    toast('Aucune frame capturée — marchez en filmant', 'err');
+    return;
+  }
+  pauseRecording();
+  if (S.stream) {
+    S.stream.getTracks().forEach(t => t.stop());
+    S.stream = null;
+  }
+  renderFramesGrid();
+  goPage('frames');
+}
+
+// ═══════════════════════════════════════════════════════
+// FRAMES REVIEW
+// ═══════════════════════════════════════════════════════
+function renderFramesGrid() {
+  var grid = document.getElementById('frames-grid');
+  var selected = S.captureFrames.filter(f => f.selected).length;
+  document.getElementById('frames-subtitle').textContent =
+    selected + '/' + S.captureFrames.length + ' frames sélectionnées — tapez pour exclure';
+
+  grid.innerHTML = S.captureFrames.map(function(f, i) {
+    var ts = new Date(f.ts).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    return '<div class="frame-item' + (f.selected ? ' selected' : ' excluded') + '" ' +
+      'onclick="toggleFrame(' + i + ')" id="frame-item-' + i + '">' +
+      (f.dataUrl ? '<img src="' + f.dataUrl + '" loading="lazy">' :
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--mut);font-size:.6rem">Pas d\'image</div>') +
+      '<div class="frame-ts">' + ts + '</div>' +
+      (f.selected ?
+        '<div class="frame-check">✓</div>' :
+        '<div class="frame-excluded-x">✕</div>') +
+      '</div>';
+  }).join('');
+
+  var analyseBtn = document.getElementById('btn-analyse');
+  analyseBtn.textContent = S.apiKey
+    ? '🤖 Analyser ' + selected + ' frames avec Claude Vision'
+    : '🤖 Analyser (clé API requise)';
+}
+
+function toggleFrame(i) {
+  S.captureFrames[i].selected = !S.captureFrames[i].selected;
+  renderFramesGrid();
+}
+
+function skipAnalysis() {
+  S.elements = [];
+  goPage('plan');
+  toast('Plan vide — ajoutez les éléments manuellement', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// ANALYSE CLAUDE VISION
+// ═══════════════════════════════════════════════════════
+async function startAnalysis() {
+  if (!S.apiKey) {
+    toast('Clé API requise — renseignez-la dans Setup', 'err');
+    goPage('setup');
+    return;
+  }
+  var frames = S.captureFrames.filter(f => f.selected && f.dataUrl);
+  if (!frames.length) {
+    toast('Aucune frame sélectionnée', 'err');
+    return;
+  }
+  S.analysisResults = [];
+  goPage('analyse');
+
+  var progressEl = document.getElementById('analyse-progress');
+  var statusEl   = document.getElementById('analyse-status');
+  var resultList = document.getElementById('result-list');
+  var errorEl    = document.getElementById('analyse-error');
+  var buildBtn   = document.getElementById('btn-build-plan');
+  var previewWrap = document.getElementById('analyse-frame-preview');
+  var previewImg  = document.getElementById('analyse-current-frame');
+
+  errorEl.style.display = 'none';
+  resultList.innerHTML = '';
+  buildBtn.style.display = 'none';
+
+  var total = frames.length;
+
+  for (var i = 0; i < total; i++) {
+    var frame = frames[i];
+    var pct = Math.round((i / total) * 100);
+    progressEl.style.width = pct + '%';
+    statusEl.textContent = 'Analyse frame ' + (i + 1) + '/' + total + '…';
+
+    // Afficher la frame en cours
+    previewWrap.style.display = 'block';
+    previewImg.src = frame.dataUrl;
+
+    try {
+      var result = await analyzeFrame(frame.dataUrl, i, total);
+      S.analysisResults.push({frameIdx: i, elements: result});
+      appendResultItem(i, result, resultList);
+    } catch (err) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = '❌ Erreur frame ' + (i+1) + ' : ' + err.message +
+        '\n\nVérifiez votre clé API ou la connexion.';
+      // Continuer quand même avec les frames suivantes
+    }
+
+    // Pause courte entre requêtes
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  progressEl.style.width = '100%';
+  statusEl.textContent = 'Analyse terminée — ' + S.analysisResults.length + '/' + total + ' frames traitées';
+  buildBtn.style.display = 'block';
+  previewWrap.style.display = 'none';
+}
+
+async function analyzeFrame(dataUrl, idx, total) {
+  // Extraire base64 (retirer le header data:image/jpeg;base64,)
+  var base64 = dataUrl.split(',')[1];
+
+  var systemPrompt = `Tu es un expert en cartographie d'ateliers industriels.
+Analyse cette photo d'un atelier de fabrication et identifie tous les équipements visibles.
+Réponds UNIQUEMENT en JSON, sans texte avant ou après, sans balises markdown.
+Format exact :
+{"elements":[{"type":"machine|table|poste|rack|allee|mur|autre","label":"Nom court descriptif","position":"gauche|centre|droite|fond|avant|plafond","taille":"petit|moyen|grand"}]}
+Types possibles :
+- machine : équipement de production (presse, tour, fraiseuse, soudeuse, robot, convoyeur...)
+- table : plan de travail, établi, table d'assemblage
+- poste : position de travail opérateur identifiable
+- rack : rayonnage, palette, bac, zone de stockage
+- allee : couloir, passage, zone de circulation
+- mur : mur, cloison, barrière, limite d'espace
+- autre : tout autre élément notable
+Si la photo est floue, sombre ou vide, retourne {"elements":[]}.`;
+
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type':         'application/json',
+      'x-api-key':            S.apiKey,
+      'anthropic-version':    '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model:      'claude-opus-4-5',
+      max_tokens: 800,
+      system:     systemPrompt,
+      messages: [{
+        role: 'user',
+        content: [{
+          type: 'image',
+          source: {
+            type:       'base64',
+            media_type: 'image/jpeg',
+            data:       base64,
+          }
+        }, {
+          type: 'text',
+          text: 'Photo ' + (idx+1) + '/' + total + ' — identifie tous les équipements industriels visibles.'
+        }]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    var errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody.error?.message || 'HTTP ' + response.status);
+  }
+
+  var data = await response.json();
+  var text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  var clean = text.replace(/```json|```/g, '').trim();
+
+  try {
+    var parsed = JSON.parse(clean);
+    return parsed.elements || [];
+  } catch(e) {
+    console.warn('Parse error for frame', idx, text);
+    return [];
+  }
+}
+
+function appendResultItem(idx, elements, container) {
+  if (!elements || !elements.length) {
+    var emptyDiv = document.createElement('div');
+    emptyDiv.className = 'result-item';
+    emptyDiv.innerHTML = '<div class="ri-frame">Frame ' + (idx+1) + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mut)">Aucun élément détecté</div>';
+    container.appendChild(emptyDiv);
+    return;
+  }
+  var div = document.createElement('div');
+  div.className = 'result-item';
+  div.innerHTML = '<div class="ri-frame">Frame ' + (idx+1) + ' — ' + elements.length + ' élément(s)</div>' +
+    '<div class="ri-tags">' +
+    elements.map(function(e) {
+      var t = e.type || 'other';
+      return '<span class="ri-tag ' + t + '">' + (ELEMENT_ICONS[t] || '📌') + ' ' + e.label + '</span>';
+    }).join('') +
+    '</div>';
+  container.appendChild(div);
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD PLAN
+// ═══════════════════════════════════════════════════════
+function buildPlan() {
+  S.elements = [];
+  var idCounter = 1;
+  var seenLabels = {};
+
+  // Extraire tous les éléments des résultats d'analyse
+  S.analysisResults.forEach(function(result) {
+    result.elements.forEach(function(e) {
+      var label = e.label || 'Élément';
+      // Dédupliqua simple sur label
+      if (seenLabels[label.toLowerCase()]) return;
+      seenLabels[label.toLowerCase()] = true;
+
+      var type = e.type || 'other';
+      if (!ELEMENT_COLORS[type]) type = 'other';
+
+      // Auto-placement en grille simple
+      var col = (S.elements.length % 5);
+      var row = Math.floor(S.elements.length / 5);
+      var baseX = 1 + col * 4;
+      var baseY = 1 + row * 4;
+
+      // Taille selon type
+      var w = 2, h = 1.5;
+      if (type === 'machine')     { w = 3; h = 2; }
+      if (type === 'rack')        { w = 2; h = 4; }
+      if (type === 'allee')       { w = 8; h = 1.5; }
+      if (type === 'mur')         { w = 10; h = 0.4; }
+      if (type === 'poste')       { w = 1.5; h = 1.5; }
+
+      S.elements.push({
+        id:        idCounter++,
+        type:      type,
+        label:     label,
+        x:         baseX,
+        y:         baseY,
+        w:         w,
+        h:         h,
+        color:     ELEMENT_COLORS[type],
+        fromFrame: result.frameIdx,
+      });
+    });
+  });
+
+  if (!S.elements.length) {
+    toast('Aucun élément détecté — ajoutez manuellement', 'err');
+  } else {
+    toast(S.elements.length + ' éléments placés sur le plan', 'ok');
+  }
+  goPage('plan');
+}
+
+// ═══════════════════════════════════════════════════════
+// PLAN CANVAS
+// ═══════════════════════════════════════════════════════
+function initPlanCanvas() {
+  planCanvas = document.getElementById('plan-canvas');
+  var pg = document.getElementById('pg-plan');
+  var toolbarH = 72;
+  planCanvas.width  = pg.clientWidth  || window.innerWidth;
+  planCanvas.height = (pg.clientHeight || window.innerHeight) - toolbarH;
+  planCtx = planCanvas.getContext('2d');
+  S.camX = planCanvas.width  / 2;
+  S.camY = planCanvas.height / 2;
+  S.camZ = 1;
+
+  // Touch pan + pinch zoom
+  var lastT = null, lastPinch = 0;
+  planCanvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      lastPinch = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+    }
+    lastT = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  }, {passive:false});
+  planCanvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      var d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
+      S.camZ = Math.max(0.2, Math.min(8, S.camZ * (d / lastPinch)));
+      lastPinch = d;
+      return;
+    }
+    if (!lastT) return;
+    S.camX += e.touches[0].clientX - lastT.x;
+    S.camY += e.touches[0].clientY - lastT.y;
+    lastT = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  }, {passive:false});
+  planCanvas.addEventListener('touchend', function() { lastT = null; }, {passive:false});
+
+  // Click : sélection / placement
+  planCanvas.addEventListener('click', onPlanClick);
+
+  document.getElementById('plan-zone-name').textContent = S.zoneName || 'Zone';
+  document.getElementById('plan-element-count').textContent = S.elements.length;
+}
+
+function onPlanClick(e) {
+  var rect = planCanvas.getBoundingClientRect();
+  var cx = e.clientX - rect.left;
+  var cy = e.clientY - rect.top;
+  var wx = (cx - S.camX) / (S.PX_PER_M * S.camZ);
+  var wy = (cy - S.camY) / (S.PX_PER_M * S.camZ);
+
+  // Mode calibration échelle
+  if (S.scalePicking) {
+    if (!S.scalePoint1) {
+      S.scalePoint1 = {x: wx, y: wy};
+      toast('Point 1 placé — tapez le point 2', 'ok');
+    } else {
+      var dx = wx - S.scalePoint1.x;
+      var dy = wy - S.scalePoint1.y;
+      var distPx = Math.sqrt(dx*dx + dy*dy);
+      if (distPx > 0) {
+        var newScale = S.scaleDistM / distPx;
+        // Recalculer toutes les positions
+        var ratio = newScale / 1; // on garde les coords world inchangées
+        S.PX_PER_M = Math.round(60 * (1/newScale) * 60); // approx
+        toast('Échelle calibrée : 1m = ' + S.PX_PER_M.toFixed(0) + 'px', 'ok');
+      }
+      S.scalePicking = false;
+      S.scalePoint1  = null;
+    }
+    return;
+  }
+
+  // Mode placement d'élément
+  if (S.addingElementType) {
+    var id = Date.now();
+    var type = S.addingElementType;
+    var w = 2, h = 1.5;
+    if (type === 'machine')     { w = 3; h = 2; }
+    if (type === 'rack')        { w = 2; h = 4; }
+    if (type === 'allee')       { w = 8; h = 1.5; }
+    if (type === 'mur')         { w = 10; h = 0.4; }
+    if (type === 'poste')       { w = 1.5; h = 1.5; }
+    S.elements.push({
+      id, type, label: S.addingElementLabel,
+      x: wx - w/2, y: wy - h/2, w, h,
+      color: ELEMENT_COLORS[type] || ELEMENT_COLORS.other,
+      fromFrame: -1,
+    });
+    S.addingElementType  = null;
+    S.addingElementLabel = '';
+    document.getElementById('plan-element-count').textContent = S.elements.length;
+    toast('📍 ' + S.addingElementLabel + ' placé', 'ok');
+    return;
+  }
+
+  // Sélection d'un élément existant
+  var hit = null;
+  for (var i = S.elements.length - 1; i >= 0; i--) {
+    var el = S.elements[i];
+    if (wx >= el.x && wx <= el.x + el.w && wy >= el.y && wy <= el.y + el.h) {
+      hit = el; break;
+    }
+  }
+  if (hit) {
+    S.selectedElementId = hit.id;
+    document.getElementById('inp-edit-label').value = hit.label;
+    openModal('modal-edit-label');
+  }
+}
+
+function startPlanRender() {
+  cancelAnimationFrame(animFrame);
+  function frame() {
+    drawPlan();
+    animFrame = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+function worldToScreen(wx, wy) {
+  return {
+    x: wx * S.PX_PER_M * S.camZ + S.camX,
+    y: wy * S.PX_PER_M * S.camZ + S.camY,
+  };
+}
+
+function drawPlan() {
+  if (!planCtx || !planCanvas) return;
+  var W = planCanvas.width, H = planCanvas.height;
+  planCtx.clearRect(0, 0, W, H);
+
+  // Fond
+  planCtx.fillStyle = '#0A0A0F';
+  planCtx.fillRect(0, 0, W, H);
+
+  // Grille
+  var gm  = 5;
+  var gpx = gm * S.PX_PER_M * S.camZ;
+  if (gpx > 15) {
+    var ox = ((S.camX % gpx) + gpx) % gpx;
+    var oy = ((S.camY % gpx) + gpx) % gpx;
+    planCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+    planCtx.lineWidth = 1;
+    for (var gx = ox; gx < W; gx += gpx) {
+      planCtx.beginPath(); planCtx.moveTo(gx, 0); planCtx.lineTo(gx, H); planCtx.stroke();
+    }
+    for (var gy = oy; gy < H; gy += gpx) {
+      planCtx.beginPath(); planCtx.moveTo(0, gy); planCtx.lineTo(W, gy); planCtx.stroke();
+    }
+    // Labels mètres
+    planCtx.fillStyle = 'rgba(90,90,122,0.5)';
+    planCtx.font = '9px DM Mono';
+    planCtx.textAlign = 'left';
+    for (var gx2 = ox; gx2 < W; gx2 += gpx) {
+      var mVal = Math.round((gx2 - S.camX) / (S.PX_PER_M * S.camZ));
+      planCtx.fillText(mVal + 'm', gx2 + 2, 12);
+    }
+  }
+
+  // Origine
+  var o = worldToScreen(0, 0);
+  planCtx.strokeStyle = 'rgba(0,229,255,.25)';
+  planCtx.lineWidth = 1;
+  planCtx.beginPath(); planCtx.moveTo(o.x - 14, o.y); planCtx.lineTo(o.x + 14, o.y); planCtx.stroke();
+  planCtx.beginPath(); planCtx.moveTo(o.x, o.y - 14); planCtx.lineTo(o.x, o.y + 14); planCtx.stroke();
+
+  // Éléments
+  S.elements.forEach(function(el) {
+    var s = worldToScreen(el.x, el.y);
+    var sw = el.w * S.PX_PER_M * S.camZ;
+    var sh = el.h * S.PX_PER_M * S.camZ;
+    var isSelected = el.id === S.selectedElementId;
+
+    // Fond
+    planCtx.globalAlpha = (el.type === 'mur') ? 0.9 : 0.18;
+    planCtx.fillStyle   = el.color;
+    planCtx.fillRect(s.x, s.y, sw, sh);
+    planCtx.globalAlpha = 1;
+
+    // Bordure
+    planCtx.strokeStyle = isSelected ? '#fff' : el.color;
+    planCtx.lineWidth   = isSelected ? 2.5 : 1.5;
+    planCtx.strokeRect(s.x, s.y, sw, sh);
+
+    if (sw < 20 || sh < 12) return;
+
+    // Icône
+    var iconSize = Math.max(12, Math.min(24, sw * 0.25));
+    planCtx.font = iconSize + 'px serif';
+    planCtx.textAlign    = 'center';
+    planCtx.textBaseline = 'middle';
+    planCtx.fillText(ELEMENT_ICONS[el.type] || '📌', s.x + sw * 0.25, s.y + sh * 0.4);
+
+    // Label
+    if (S.camZ > 0.35) {
+      var fontSize = Math.max(8, Math.min(13, sw * 0.13));
+      planCtx.font = fontSize + 'px DM Mono';
+      planCtx.fillStyle    = el.type === 'mur' ? '#0A0A0F' : el.color;
+      planCtx.textAlign    = 'left';
+      planCtx.textBaseline = 'middle';
+      // Truncate label if too long
+      var maxW = sw - iconSize - 6;
+      var label = el.label;
+      while (label.length > 2 && planCtx.measureText(label).width > maxW) {
+        label = label.slice(0, -1);
+      }
+      if (label !== el.label) label += '…';
+      planCtx.fillText(label, s.x + sw * 0.25 + iconSize * 0.8, s.y + sh * 0.4);
+    }
+  });
+
+  // Légende
+  var legX = 10, legY = H - 10;
+  var types = Object.keys(ELEMENT_COLORS).filter(t => t !== 'other');
+  var legH = types.length * 14 + 8;
+  planCtx.fillStyle = 'rgba(10,10,15,.8)';
+  planCtx.fillRect(legX - 4, legY - legH - 4, 130, legH + 8);
+  types.forEach(function(t, i) {
+    var ly = legY - (types.length - 1 - i) * 14;
+    planCtx.fillStyle = ELEMENT_COLORS[t];
+    planCtx.fillRect(legX, ly - 7, 12, 10);
+    planCtx.fillStyle = 'rgba(224,224,240,0.65)';
+    planCtx.font = '9px DM Mono';
+    planCtx.textAlign    = 'left';
+    planCtx.textBaseline = 'middle';
+    planCtx.fillText((ELEMENT_ICONS[t] || '') + ' ' + t, legX + 16, ly - 2);
+  });
+
+  // Hint placement
+  if (S.addingElementType) {
+    planCtx.fillStyle = 'rgba(0,229,255,.15)';
+    planCtx.fillRect(0, 0, W, H);
+    planCtx.fillStyle = '#00E5FF';
+    planCtx.font = 'bold 14px DM Mono';
+    planCtx.textAlign    = 'center';
+    planCtx.textBaseline = 'middle';
+    planCtx.fillText('Tapez pour placer : ' + S.addingElementLabel, W/2, H/2);
+  }
+
+  // Hint échelle
+  if (S.scalePicking) {
+    planCtx.fillStyle = 'rgba(255,209,102,.12)';
+    planCtx.fillRect(0, 0, W, H);
+    planCtx.fillStyle = '#FFD166';
+    planCtx.font = 'bold 13px DM Mono';
+    planCtx.textAlign    = 'center';
+    planCtx.textBaseline = 'middle';
+    planCtx.fillText(
+      S.scalePoint1 ? 'Tapez le 2ème point (' + S.scaleDistM + 'm)' : 'Tapez le 1er point',
+      W/2, H/2
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MODALS PLAN
+// ═══════════════════════════════════════════════════════
+var addingType = null;
+
+function showAddElementModal() {
+  openModal('modal-add-element');
+}
+
+function selectElementType(type) {
+  addingType = type;
+  document.querySelectorAll('#element-type-list .mcard').forEach(function(c) {
+    c.style.borderColor = '';
+  });
+  var idx = ['machine','table','poste','rack','allee','mur'].indexOf(type);
+  var cards = document.querySelectorAll('#element-type-list .mcard');
+  if (cards[idx]) cards[idx].style.borderColor = ELEMENT_COLORS[type] || 'var(--acc)';
+
+  var inp = document.getElementById('inp-element-label');
+  inp.focus();
+}
+
+function confirmAddElement() {
+  var label = (document.getElementById('inp-element-label').value || '').trim();
+  if (!addingType) { toast('Choisissez un type', 'err'); return; }
+  if (!label)      { toast('Saisissez un nom', 'err'); return; }
+  S.addingElementType  = addingType;
+  S.addingElementLabel = label;
+  addingType = null;
+  document.getElementById('inp-element-label').value = '';
+  closeModal('modal-add-element');
+  toast('Tapez sur le plan pour placer ' + label, 'ok');
+}
+
+function confirmEditLabel() {
+  var label = (document.getElementById('inp-edit-label').value || '').trim();
+  if (!label) { toast('Nom vide', 'err'); return; }
+  var el = S.elements.find(e => e.id === S.selectedElementId);
+  if (el) { el.label = label; }
+  S.selectedElementId = null;
+  closeModal('modal-edit-label');
+  toast('Renommé ✓', 'ok');
+}
+
+function deleteSelectedElement() {
+  S.elements = S.elements.filter(e => e.id !== S.selectedElementId);
+  S.selectedElementId = null;
+  document.getElementById('plan-element-count').textContent = S.elements.length;
+  closeModal('modal-edit-label');
+  toast('Élément supprimé', 'ok');
+}
+
+function showScaleModal() {
+  openModal('modal-scale');
+}
+
+function startScaleCalib() {
+  S.scaleDistM  = parseFloat(document.getElementById('inp-scale-dist').value) || 5;
+  S.scalePicking = true;
+  S.scalePoint1  = null;
+  closeModal('modal-scale');
+  toast('Tapez le 1er point sur le plan', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════
+function renderExport() {
+  var el = id => document.getElementById(id);
+  if(el('es-elements')) el('es-elements').textContent = S.elements.length;
+  if(el('es-frames'))   el('es-frames').textContent   = S.captureFrames.filter(f=>f.selected).length;
+  if(el('es-scale'))    el('es-scale').textContent    = '1:' + Math.round(100/S.camZ);
+  if(el('exp-title'))   el('exp-title').textContent   = S.zoneName || 'Plan cartographié';
+
+  var ec = document.getElementById('exp-canvas');
+  if (!ec) return;
+  var wrap = document.getElementById('exp-preview');
+  ec.width  = wrap ? wrap.clientWidth : 320;
+  ec.height = 280;
+  var ectx = ec.getContext('2d');
+
+  // Auto-fit tous les éléments
+  if (S.elements.length > 0) {
+    var allX = S.elements.flatMap(e => [e.x, e.x + e.w]);
+    var allY = S.elements.flatMap(e => [e.y, e.y + e.h]);
+    var mnx = Math.min(...allX) - 1;
+    var mxx = Math.max(...allX) + 1;
+    var mny = Math.min(...allY) - 1;
+    var mxy = Math.max(...allY) + 1;
+    var rx = mxx - mnx, ry = mxy - mny;
+    if (rx > 0 && ry > 0) {
+      var zoom = Math.min(ec.width / rx, ec.height / ry) * 0.85 / S.PX_PER_M;
+      S.camZ = zoom;
+      S.camX = ec.width  / 2 - (mnx + rx/2) * S.PX_PER_M * zoom;
+      S.camY = ec.height / 2 - (mny + ry/2) * S.PX_PER_M * zoom;
+    }
+  }
+
+  ectx.fillStyle = '#0A0A0F';
+  ectx.fillRect(0, 0, ec.width, ec.height);
+
+  S.elements.forEach(function(el) {
+    var s = worldToScreen(el.x, el.y);
+    var sw = el.w * S.PX_PER_M * S.camZ;
+    var sh = el.h * S.PX_PER_M * S.camZ;
+    ectx.globalAlpha = (el.type === 'mur') ? 0.9 : 0.22;
+    ectx.fillStyle   = el.color;
+    ectx.fillRect(s.x, s.y, sw, sh);
+    ectx.globalAlpha = 1;
+    ectx.strokeStyle = el.color;
+    ectx.lineWidth   = 1.5;
+    ectx.strokeRect(s.x, s.y, sw, sh);
+    if (sw > 18) {
+      ectx.fillStyle    = el.color;
+      ectx.font         = Math.max(8, sw * 0.12) + 'px DM Mono';
+      ectx.textAlign    = 'center';
+      ectx.textBaseline = 'middle';
+      ectx.fillText(el.label.slice(0, 12), s.x + sw/2, s.y + sh/2);
+    }
+  });
+}
+
+function exportLeanPlan() {
+  var payload = {
+    _type:    'leanplan',
+    _version: '2.0',
+    _date:    new Date().toISOString(),
+    name:     S.zoneName,
+    scale:    1,
+    pxPerM:   S.PX_PER_M,
+    captureMode: 'camera',
+    framesCount: S.captureFrames.filter(f => f.selected).length,
+    nodes: S.elements
+      .filter(e => e.type === 'poste')
+      .map(e => ({
+        id:    e.id,
+        label: e.label,
+        x:     Math.round(e.x * S.PX_PER_M),
+        y:     Math.round(e.y * S.PX_PER_M),
+        color: e.color,
+      })),
+    elements: S.elements.map(e => ({
+      id:    e.id,
+      type:  e.type,
+      label: e.label,
+      x:     Math.round(e.x * S.PX_PER_M),
+      y:     Math.round(e.y * S.PX_PER_M),
+      w:     Math.round(e.w * S.PX_PER_M),
+      h:     Math.round(e.h * S.PX_PER_M),
+      color: e.color,
+    })),
+    walls:     [],
+    zones:     [],
+    obstacles: [],
+    trail:     [],
+  };
+  var json = JSON.stringify(payload, null, 2);
+  var a = document.createElement('a');
+  a.href     = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = 'plan-' + new Date().toISOString().slice(0, 10) + '.leanplan.json';
+  a.click();
+  toast('Export .leanplan.json ✓', 'ok');
+}
+
+function exportPNG() {
+  var ec = document.getElementById('exp-canvas');
+  if (!ec) return;
+  var a = document.createElement('a');
+  a.href     = ec.toDataURL('image/png');
+  a.download = 'leanmapper-v2-' + Date.now() + '.png';
+  a.click();
+  toast('PNG exporté ✓', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILITAIRES
+// ═══════════════════════════════════════════════════════
+function openModal(id)  { var m = document.getElementById(id); if(m) m.classList.add('on'); }
+function closeModal(id) { var m = document.getElementById(id); if(m) m.classList.remove('on'); }
+
+var toastTimer = null;
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'on' + (type === 'err' ? ' err' : type === 'ok' ? ' ok' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+function resetSession() {
+  if (S.elements.length || S.captureFrames.length) {
+    if (!confirm('Démarrer une nouvelle session ? Les données seront perdues.')) return;
+  }
+  if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
+  clearInterval(S.recTimer);
+  clearInterval(S.flowInterval);
+  clearInterval(S.frameInterval);
+  cancelAnimationFrame(animFrame);
+  Object.assign(S, {
+    mode:'cam', zoneName:'', recording:false, recStart:null,
+    captureFrames:[], prevFrameData:null,
+    analysisResults:[], elements:[],
+    camX:0, camY:0, camZ:1,
+    scalePicking:false, scalePoint1:null,
+    selectedElementId:null,
+    addingElementType:null, addingElementLabel:'',
+  });
+  document.getElementById('frame-badge').textContent = '0';
+  document.getElementById('btn-export-top').style.display = 'none';
+  document.getElementById('btn-reset-top').style.display  = 'none';
+  goPage('setup');
+}
+
+// ── Init ──────────────────────────────────────────────
+(function init() {
+  // Charger la clé API depuis localStorage
+  try {
+    var saved = localStorage.getItem('lm_apikey');
+    if (saved) {
+      S.apiKey = saved;
+      document.getElementById('inp-api-key').value = saved;
+    }
+  } catch(e) {}
+  goPage('setup');
+})();
+</script>
+</body>
+</html>
